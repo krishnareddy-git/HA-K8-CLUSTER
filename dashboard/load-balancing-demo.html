@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s Load Balancing Demo</title>
+    <link rel="stylesheet" href="lb-demo-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="demo-container">
+        <!-- Header -->
+        <header class="demo-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <i class="fas fa-dharmachakra logo-icon"></i>
+                    <div>
+                        <h1>Kubernetes Load Balancing</h1>
+                        <p>Interactive Demonstration</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="stats-mini">
+                        <div class="stat-mini">
+                            <span class="stat-label">Total Requests</span>
+                            <span class="stat-value" id="total-requests">0</span>
+                        </div>
+                        <div class="stat-mini">
+                            <span class="stat-label">Active Pods</span>
+                            <span class="stat-value" id="active-pods">3</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="demo-content">
+            <!-- Architecture Diagram Section -->
+            <section class="architecture-section">
+                <div class="section-header">
+                    <h2>HA Architecture Overview</h2>
+                    <div class="architecture-tabs">
+                        <button class="tab-btn active" data-arch="service">Service Load Balancer</button>
+                        <button class="tab-btn" data-arch="haproxy">HAProxy (Control Plane)</button>
+                        <button class="tab-btn" data-arch="ingress">Ingress Controller</button>
+                    </div>
+                </div>
+
+                <!-- Service Load Balancer View -->
+                <div class="architecture-view active" id="service-view">
+                    <div class="architecture-diagram">
+                        <!-- Client -->
+                        <div class="arch-layer client-layer">
+                            <div class="arch-node client-node" id="client">
+                                <i class="fas fa-user-circle"></i>
+                                <span>Client</span>
+                                <div class="request-counter">0 requests</div>
+                            </div>
+                        </div>
+
+                        <!-- Service Layer -->
+                        <div class="arch-layer service-layer">
+                            <div class="arch-node service-node" id="service">
+                                <i class="fas fa-network-wired"></i>
+                                <span>Kubernetes Service</span>
+                                <div class="service-ip">ClusterIP: 10.96.100.50</div>
+                                <div class="lb-algorithm">Algorithm: <span id="algorithm-type">Round Robin</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Pods Layer -->
+                        <div class="arch-layer pods-layer">
+                            <div class="arch-node pod-node" id="pod-1" data-pod="1">
+                                <div class="pod-header">
+                                    <i class="fas fa-cube"></i>
+                                    <span>Pod 1</span>
+                                </div>
+                                <div class="pod-info">
+                                    <div class="pod-ip">IP: 10.244.0.5</div>
+                                    <div class="pod-status">
+                                        <span class="status-dot"></span>
+                                        <span>Ready</span>
+                                    </div>
+                                </div>
+                                <div class="request-count">0 requests</div>
+                                <div class="load-bar">
+                                    <div class="load-fill" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <div class="arch-node pod-node" id="pod-2" data-pod="2">
+                                <div class="pod-header">
+                                    <i class="fas fa-cube"></i>
+                                    <span>Pod 2</span>
+                                </div>
+                                <div class="pod-info">
+                                    <div class="pod-ip">IP: 10.244.0.6</div>
+                                    <div class="pod-status">
+                                        <span class="status-dot"></span>
+                                        <span>Ready</span>
+                                    </div>
+                                </div>
+                                <div class="request-count">0 requests</div>
+                                <div class="load-bar">
+                                    <div class="load-fill" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <div class="arch-node pod-node" id="pod-3" data-pod="3">
+                                <div class="pod-header">
+                                    <i class="fas fa-cube"></i>
+                                    <span>Pod 3</span>
+                                </div>
+                                <div class="pod-info">
+                                    <div class="pod-ip">IP: 10.244.0.7</div>
+                                    <div class="pod-status">
+                                        <span class="status-dot"></span>
+                                        <span>Ready</span>
+                                    </div>
+                                </div>
+                                <div class="request-count">0 requests</div>
+                                <div class="load-bar">
+                                    <div class="load-fill" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SVG for Connection Lines -->
+                        <svg class="connection-lines" id="connection-svg">
+                            <!-- Lines will be drawn dynamically -->
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- HAProxy View -->
+                <div class="architecture-view" id="haproxy-view">
+                    <div class="architecture-diagram haproxy-diagram">
+                        <!-- External Client -->
+                        <div class="arch-layer">
+                            <div class="arch-node client-node">
+                                <i class="fas fa-laptop"></i>
+                                <span>External Client</span>
+                            </div>
+                        </div>
+
+                        <!-- HAProxy -->
+                        <div class="arch-layer">
+                            <div class="arch-node haproxy-node">
+                                <i class="fas fa-server"></i>
+                                <span>HAProxy Load Balancer</span>
+                                <div class="service-ip">VIP: 192.168.1.100:6443</div>
+                            </div>
+                        </div>
+
+                        <!-- Master Nodes -->
+                        <div class="arch-layer">
+                            <div class="arch-node master-node">
+                                <i class="fas fa-crown"></i>
+                                <span>Master Node 1</span>
+                                <div class="pod-ip">API: 192.168.1.101:6443</div>
+                            </div>
+                            <div class="arch-node master-node">
+                                <i class="fas fa-crown"></i>
+                                <span>Master Node 2</span>
+                                <div class="pod-ip">API: 192.168.1.102:6443</div>
+                            </div>
+                            <div class="arch-node master-node">
+                                <i class="fas fa-crown"></i>
+                                <span>Master Node 3</span>
+                                <div class="pod-ip">API: 192.168.1.103:6443</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ingress View -->
+                <div class="architecture-view" id="ingress-view">
+                    <div class="architecture-diagram ingress-diagram">
+                        <div class="arch-layer">
+                            <div class="arch-node client-node">
+                                <i class="fas fa-globe"></i>
+                                <span>Internet</span>
+                            </div>
+                        </div>
+
+                        <div class="arch-layer">
+                            <div class="arch-node ingress-node">
+                                <i class="fas fa-door-open"></i>
+                                <span>Ingress Controller</span>
+                                <div class="service-ip">example.com</div>
+                            </div>
+                        </div>
+
+                        <div class="arch-layer">
+                            <div class="arch-node service-node small">
+                                <i class="fas fa-network-wired"></i>
+                                <span>Service A</span>
+                            </div>
+                            <div class="arch-node service-node small">
+                                <i class="fas fa-network-wired"></i>
+                                <span>Service B</span>
+                            </div>
+                            <div class="arch-node service-node small">
+                                <i class="fas fa-network-wired"></i>
+                                <span>Service C</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Controls and Simulation -->
+            <div class="demo-grid">
+                <!-- Control Panel -->
+                <section class="control-panel">
+                    <div class="section-header">
+                        <h2>Control Panel</h2>
+                    </div>
+                    <div class="panel-content">
+                        <!-- Algorithm Selection -->
+                        <div class="control-group">
+                            <label>Load Balancing Algorithm</label>
+                            <select id="lb-algorithm" class="control-select">
+                                <option value="round-robin">Round Robin</option>
+                                <option value="least-connections">Least Connections</option>
+                                <option value="random">Random</option>
+                                <option value="ip-hash">IP Hash (Session Affinity)</option>
+                            </select>
+                            <small class="help-text">Choose how requests are distributed</small>
+                        </div>
+
+                        <!-- Request Controls -->
+                        <div class="control-group">
+                            <label>Send Requests</label>
+                            <div class="button-group">
+                                <button class="btn btn-primary" onclick="sendSingleRequest()">
+                                    <i class="fas fa-paper-plane"></i> Send 1 Request
+                                </button>
+                                <button class="btn btn-secondary" onclick="sendBurstRequests()">
+                                    <i class="fas fa-bolt"></i> Send 10 Requests
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Auto Request -->
+                        <div class="control-group">
+                            <label>Auto Generate Requests</label>
+                            <div class="toggle-group">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-request-toggle" onchange="toggleAutoRequests()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span id="auto-status">Off</span>
+                            </div>
+                            <small class="help-text">Automatically send requests every 2 seconds</small>
+                        </div>
+
+                        <!-- Pod Controls -->
+                        <div class="control-group">
+                            <label>Pod Management</label>
+                            <div class="pod-controls">
+                                <button class="btn-pod" onclick="togglePod(1)">
+                                    <i class="fas fa-power-off"></i> Pod 1
+                                </button>
+                                <button class="btn-pod" onclick="togglePod(2)">
+                                    <i class="fas fa-power-off"></i> Pod 2
+                                </button>
+                                <button class="btn-pod" onclick="togglePod(3)">
+                                    <i class="fas fa-power-off"></i> Pod 3
+                                </button>
+                            </div>
+                            <small class="help-text">Click to simulate pod failure</small>
+                        </div>
+
+                        <!-- Reset -->
+                        <div class="control-group">
+                            <button class="btn btn-danger" onclick="resetDemo()">
+                                <i class="fas fa-redo"></i> Reset Demo
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Explanation Panel -->
+                <section class="explanation-panel">
+                    <div class="section-header">
+                        <h2>How It Works</h2>
+                    </div>
+                    <div class="panel-content">
+                        <div class="explanation-content" id="explanation-content">
+                            <div class="explanation-item">
+                                <div class="exp-icon">
+                                    <i class="fas fa-info-circle"></i>
+                                </div>
+                                <div class="exp-content">
+                                    <h3>Kubernetes Service Load Balancing</h3>
+                                    <p>When you create a Kubernetes Service, it acts as a stable endpoint with its own ClusterIP. The Service automatically distributes incoming traffic across all healthy pods that match its selector.</p>
+                                </div>
+                            </div>
+
+                            <div class="explanation-item">
+                                <div class="exp-icon">
+                                    <i class="fas fa-sync-alt"></i>
+                                </div>
+                                <div class="exp-content">
+                                    <h3>Round Robin Algorithm</h3>
+                                    <p>The default algorithm. Each request is sent to the next pod in sequence. This ensures even distribution when all pods have similar capacity.</p>
+                                </div>
+                            </div>
+
+                            <div class="explanation-item">
+                                <div class="exp-icon">
+                                    <i class="fas fa-heartbeat"></i>
+                                </div>
+                                <div class="exp-content">
+                                    <h3>Health Checks & Failover</h3>
+                                    <p>Kubernetes continuously monitors pod health. If a pod fails, traffic is automatically redirected to healthy pods only. Try disabling a pod to see this in action!</p>
+                                </div>
+                            </div>
+
+                            <div class="explanation-item">
+                                <div class="exp-icon">
+                                    <i class="fas fa-layer-group"></i>
+                                </div>
+                                <div class="exp-content">
+                                    <h3>Types of Load Balancing</h3>
+                                    <ul class="exp-list">
+                                        <li><strong>Service LB:</strong> Distributes traffic to pods within the cluster</li>
+                                        <li><strong>HAProxy:</strong> External load balancer for API server HA</li>
+                                        <li><strong>Ingress:</strong> HTTP/HTTPS routing and load balancing</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Statistics Panel -->
+                <section class="statistics-panel">
+                    <div class="section-header">
+                        <h2>Real-time Statistics</h2>
+                    </div>
+                    <div class="panel-content">
+                        <div class="stat-grid">
+                            <div class="stat-box">
+                                <div class="stat-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <div class="stat-value" id="avg-response-time">0ms</div>
+                                    <div class="stat-label">Avg Response Time</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-box">
+                                <div class="stat-icon">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <div class="stat-value" id="requests-per-sec">0</div>
+                                    <div class="stat-label">Requests/sec</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-box">
+                                <div class="stat-icon">
+                                    <i class="fas fa-balance-scale"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <div class="stat-value" id="load-balance">100%</div>
+                                    <div class="stat-label">Balance Efficiency</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chart -->
+                        <div class="chart-container">
+                            <canvas id="distribution-chart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Live Logs -->
+                <section class="logs-panel">
+                    <div class="section-header">
+                        <h2>Request Log</h2>
+                        <button class="btn-text" onclick="clearLogs()">Clear</button>
+                    </div>
+                    <div class="panel-content">
+                        <div class="logs-container" id="logs-container">
+                            <div class="log-entry info">
+                                <span class="log-time">[00:00:00]</span>
+                                <span class="log-message">Demo ready. Send requests to begin!</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="lb-demo.js"></script>
+</body>
+</html>

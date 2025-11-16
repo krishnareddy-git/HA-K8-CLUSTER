@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HA K8s Cluster Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-dharmachakra"></i>
+                    <span>K8s HA Cluster</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="overview">
+                    <i class="fas fa-home"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="#" class="nav-item" data-page="nodes">
+                    <i class="fas fa-server"></i>
+                    <span>Nodes</span>
+                </a>
+                <a href="#" class="nav-item" data-page="pods">
+                    <i class="fas fa-cubes"></i>
+                    <span>Pods</span>
+                </a>
+                <a href="#" class="nav-item" data-page="services">
+                    <i class="fas fa-network-wired"></i>
+                    <span>Services</span>
+                </a>
+                <a href="#" class="nav-item" data-page="deployments">
+                    <i class="fas fa-rocket"></i>
+                    <span>Deployments</span>
+                </a>
+                <a href="#" class="nav-item" data-page="health">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health Check</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot pulse"></span>
+                    <span>Live Monitoring</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1 id="page-title">Cluster Overview</h1>
+                    <span class="breadcrumb">Dashboard / Overview</span>
+                </div>
+                <div class="header-right">
+                    <button class="btn-icon refresh-btn" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <div class="timestamp">
+                        Last updated: <span id="last-update">--</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Overview Page -->
+                <div id="overview-page" class="page active">
+                    <!-- Stats Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon nodes">
+                                <i class="fas fa-server"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="total-nodes">--</div>
+                                <div class="stat-label">Total Nodes</div>
+                                <div class="stat-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    <span id="ready-nodes">--</span> Ready
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon pods">
+                                <i class="fas fa-cubes"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="total-pods">--</div>
+                                <div class="stat-label">Running Pods</div>
+                                <div class="stat-change positive">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span id="healthy-pods">--</span> Healthy
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon services">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="total-services">--</div>
+                                <div class="stat-label">Services</div>
+                                <div class="stat-change neutral">
+                                    <i class="fas fa-info-circle"></i>
+                                    Active
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon deployments">
+                                <i class="fas fa-rocket"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="total-deployments">--</div>
+                                <div class="stat-label">Deployments</div>
+                                <div class="stat-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    <span id="ready-deployments">--</span> Ready
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="charts-row">
+                        <div class="chart-card">
+                            <div class="card-header">
+                                <h3>Cluster Health Status</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="health-chart" class="chart-container"></div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="card-header">
+                                <h3>Resource Distribution</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="resource-chart" class="chart-container"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="activity-card">
+                        <div class="card-header">
+                            <h3>Recent Events</h3>
+                            <button class="btn-text">View All</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="events-list" class="events-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nodes Page -->
+                <div id="nodes-page" class="page">
+                    <div class="table-card">
+                        <div class="card-header">
+                            <h3>Cluster Nodes</h3>
+                            <div class="filter-group">
+                                <input type="text" class="search-input" placeholder="Search nodes..." id="nodes-search">
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="nodes-table" class="data-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pods Page -->
+                <div id="pods-page" class="page">
+                    <div class="table-card">
+                        <div class="card-header">
+                            <h3>Pods</h3>
+                            <div class="filter-group">
+                                <select id="namespace-filter" class="filter-select">
+                                    <option value="all">All Namespaces</option>
+                                </select>
+                                <input type="text" class="search-input" placeholder="Search pods..." id="pods-search">
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="pods-table" class="data-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Services Page -->
+                <div id="services-page" class="page">
+                    <div class="table-card">
+                        <div class="card-header">
+                            <h3>Services</h3>
+                            <div class="filter-group">
+                                <input type="text" class="search-input" placeholder="Search services..." id="services-search">
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="services-table" class="data-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deployments Page -->
+                <div id="deployments-page" class="page">
+                    <div class="table-card">
+                        <div class="card-header">
+                            <h3>Deployments</h3>
+                            <div class="filter-group">
+                                <input type="text" class="search-input" placeholder="Search deployments..." id="deployments-search">
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="deployments-table" class="data-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Check Page -->
+                <div id="health-page" class="page">
+                    <div class="health-grid">
+                        <div class="health-card">
+                            <div class="health-header">
+                                <i class="fas fa-server"></i>
+                                <h3>API Server</h3>
+                            </div>
+                            <div class="health-status" id="api-status">
+                                <span class="status-badge loading">Checking...</span>
+                            </div>
+                        </div>
+
+                        <div class="health-card">
+                            <div class="health-header">
+                                <i class="fas fa-database"></i>
+                                <h3>ETCD</h3>
+                            </div>
+                            <div class="health-status" id="etcd-status">
+                                <span class="status-badge loading">Checking...</span>
+                            </div>
+                        </div>
+
+                        <div class="health-card">
+                            <div class="health-header">
+                                <i class="fas fa-cogs"></i>
+                                <h3>Controller Manager</h3>
+                            </div>
+                            <div class="health-status" id="controller-status">
+                                <span class="status-badge loading">Checking...</span>
+                            </div>
+                        </div>
+
+                        <div class="health-card">
+                            <div class="health-header">
+                                <i class="fas fa-calendar-check"></i>
+                                <h3>Scheduler</h3>
+                            </div>
+                            <div class="health-status" id="scheduler-status">
+                                <span class="status-badge loading">Checking...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="logs-card">
+                        <div class="card-header">
+                            <h3>System Logs</h3>
+                            <button class="btn-text" onclick="clearLogs()">Clear</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="logs-container" class="logs-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
