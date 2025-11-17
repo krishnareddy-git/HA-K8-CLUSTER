@@ -399,6 +399,7 @@ function updateChart() {
 
 // Logging
 function logMessage(level, message) {
+    // Log to local display
     const logsContainer = document.getElementById('logs-container');
     const now = new Date();
     const timeString = now.toTimeString().split(' ')[0];
@@ -415,6 +416,15 @@ function logMessage(level, message) {
     // Keep only last 50 logs
     while (logsContainer.children.length > 50) {
         logsContainer.removeChild(logsContainer.lastChild);
+    }
+    
+    // Also log to unified logger for cross-dashboard visibility
+    if (window.unifiedLogger) {
+        window.unifiedLogger.log(level, message, 'loadbalancer', {
+            algorithm: state.algorithm,
+            totalRequests: state.totalRequests,
+            activePods: Object.keys(state.pods).filter(id => state.pods[id].active).length
+        });
     }
 }
 

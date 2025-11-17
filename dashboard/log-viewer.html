@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s Dashboard - Unified Log Viewer</title>
+    <link rel="stylesheet" href="log-viewer-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="log-viewer-container">
+        <!-- Header -->
+        <header class="log-header">
+            <div class="header-left">
+                <i class="fas fa-terminal logo-icon"></i>
+                <div>
+                    <h1>Unified Log Viewer</h1>
+                    <p>Real-time monitoring across all dashboard components</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="header-stats">
+                    <div class="stat-mini">
+                        <span class="stat-label">Total</span>
+                        <span class="stat-value" id="total-logs">0</span>
+                    </div>
+                    <div class="stat-mini">
+                        <span class="stat-label">Last Hour</span>
+                        <span class="stat-value" id="recent-logs">0</span>
+                    </div>
+                    <div class="stat-mini errors">
+                        <span class="stat-label">Errors</span>
+                        <span class="stat-value" id="error-count">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Toolbar -->
+        <div class="log-toolbar">
+            <div class="toolbar-left">
+                <!-- Source Filter -->
+                <div class="filter-group">
+                    <label>Source:</label>
+                    <select id="source-filter" class="filter-select">
+                        <option value="all">All Sources</option>
+                        <option value="dashboard">Dashboard</option>
+                        <option value="k8s-monitor">K8s Monitor</option>
+                        <option value="loadbalancer">Load Balancer</option>
+                        <option value="system">System</option>
+                    </select>
+                </div>
+
+                <!-- Level Filter -->
+                <div class="filter-group">
+                    <label>Level:</label>
+                    <select id="level-filter" class="filter-select">
+                        <option value="all">All Levels</option>
+                        <option value="info">Info</option>
+                        <option value="success">Success</option>
+                        <option value="warning">Warning</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+
+                <!-- Search -->
+                <div class="search-group">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="log-search" placeholder="Search logs..." class="search-input">
+                </div>
+            </div>
+
+            <div class="toolbar-right">
+                <button class="btn-icon" id="auto-scroll-btn" title="Auto-scroll">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+                <button class="btn-icon" id="pause-btn" title="Pause logging">
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button class="btn-icon" onclick="clearAllLogs()" title="Clear logs">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="btn-icon" onclick="exportLogs()" title="Export logs">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button class="btn-icon" onclick="window.location.reload()" title="Refresh">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="log-content">
+            <!-- Statistics Panel -->
+            <aside class="stats-panel">
+                <div class="stats-section">
+                    <h3>Statistics</h3>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <span class="stat-dot info"></span>
+                            Info
+                        </div>
+                        <div class="stat-item-value" id="info-count">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <span class="stat-dot success"></span>
+                            Success
+                        </div>
+                        <div class="stat-item-value" id="success-count">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <span class="stat-dot warning"></span>
+                            Warning
+                        </div>
+                        <div class="stat-item-value" id="warning-count">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <span class="stat-dot error"></span>
+                            Error
+                        </div>
+                        <div class="stat-item-value" id="error-count-stat">0</div>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <h3>By Source</h3>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <i class="fas fa-tachometer-alt"></i>
+                            Dashboard
+                        </div>
+                        <div class="stat-item-value" id="dashboard-count">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <i class="fas fa-dharmachakra"></i>
+                            K8s Monitor
+                        </div>
+                        <div class="stat-item-value" id="k8s-monitor-count">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <i class="fas fa-balance-scale"></i>
+                            Load Balancer
+                        </div>
+                        <div class="stat-item-value" id="loadbalancer-count">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">
+                            <i class="fas fa-cog"></i>
+                            System
+                        </div>
+                        <div class="stat-item-value" id="system-count">0</div>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <h3>Quick Actions</h3>
+                    <button class="action-btn" onclick="filterByLevel('error')">
+                        <i class="fas fa-exclamation-circle"></i>
+                        Show Errors Only
+                    </button>
+                    <button class="action-btn" onclick="filterBySource('k8s-monitor')">
+                        <i class="fas fa-dharmachakra"></i>
+                        K8s Cluster Changes
+                    </button>
+                    <button class="action-btn" onclick="clearFilters()">
+                        <i class="fas fa-filter"></i>
+                        Clear Filters
+                    </button>
+                </div>
+
+                <div class="stats-section">
+                    <h3>Navigation</h3>
+                    <a href="index.html" class="nav-link" target="_blank">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Main Dashboard
+                    </a>
+                    <a href="load-balancing-demo.html" class="nav-link" target="_blank">
+                        <i class="fas fa-balance-scale"></i>
+                        Load Balancer Demo
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Logs Display -->
+            <main class="logs-display">
+                <div class="logs-header">
+                    <h3>Live Logs</h3>
+                    <div class="logs-info">
+                        <span id="filtered-count">0</span> logs shown
+                        <span class="separator">|</span>
+                        <span id="paused-indicator" style="display: none;">
+                            <i class="fas fa-pause"></i> Paused
+                        </span>
+                        <span id="live-indicator">
+                            <span class="live-dot"></span> Live
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="logs-container" id="logs-container">
+                    <div class="log-placeholder">
+                        <i class="fas fa-info-circle"></i>
+                        <p>Waiting for logs...</p>
+                        <small>Logs from dashboard and load balancer will appear here</small>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="unified-logger.js"></script>
+    <script src="log-viewer.js"></script>
+</body>
+</html>

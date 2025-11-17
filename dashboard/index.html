@@ -64,6 +64,9 @@
                     <button class="btn-icon refresh-btn" onclick="refreshData()">
                         <i class="fas fa-sync-alt"></i>
                     </button>
+                    <a href="log-viewer.html" target="_blank" class="btn-icon" title="Open Log Viewer" style="text-decoration: none; color: inherit; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-terminal"></i>
+                    </a>
                     <div class="timestamp">
                         Last updated: <span id="last-update">--</span>
                     </div>
@@ -287,6 +290,8 @@
         </main>
     </div>
 
+    <script src="unified-logger.js"></script>
+    <script src="k8s-monitor.js"></script>
     <script src="dashboard.js"></script>
 </body>
 </html>

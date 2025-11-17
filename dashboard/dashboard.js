@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNavigation();
     initializeData();
     startAutoRefresh();
+    
+    // Log initialization
+    if (window.unifiedLogger) {
+        unifiedLogger.success('Dashboard initialized successfully', 'dashboard');
+    }
 });
 
 // Navigation
@@ -38,6 +43,14 @@ function initializeNavigation() {
             
             document.getElementById('page-title').textContent = titles[pageName];
             document.querySelector('.breadcrumb').textContent = `Dashboard / ${titles[pageName]}`;
+            
+            // Log navigation
+            if (window.unifiedLogger) {
+                unifiedLogger.info(`Navigated to ${titles[pageName]}`, 'dashboard', {
+                    page: pageName,
+                    timestamp: new Date().toISOString()
+                });
+            }
             
             // Show selected page
             const pages = document.querySelectorAll('.page');
@@ -82,6 +95,10 @@ async function loadPageData(pageName) {
 
 async function loadOverviewData() {
     try {
+        if (window.unifiedLogger) {
+            unifiedLogger.info('Loading cluster overview data', 'dashboard');
+        }
+        
         // Simulate API calls - In production, replace with actual kubectl commands
         const data = await fetchClusterData();
         
@@ -101,28 +118,58 @@ async function loadOverviewData() {
         // Load events
         renderEvents(data.events);
         
+        if (window.unifiedLogger) {
+            unifiedLogger.success(`Loaded cluster data: ${data.nodes.total} nodes, ${data.pods.running} pods`, 'dashboard');
+        }
+        
     } catch (error) {
         console.error('Error loading overview data:', error);
         showError('Failed to load cluster data');
+        if (window.unifiedLogger) {
+            unifiedLogger.error('Failed to load cluster data: ' + error.message, 'dashboard');
+        }
     }
 }
 
 async function loadNodesData() {
     try {
+        if (window.unifiedLogger) {
+            unifiedLogger.info('Fetching nodes data', 'dashboard');
+        }
         const nodes = await fetchNodes();
         renderNodesTable(nodes);
+        if (window.unifiedLogger) {
+            unifiedLogger.success(`Loaded ${nodes.length} node(s)`, 'dashboard');
+        }
     } catch (error) {
         console.error('Error loading nodes:', error);
+        if (window.unifiedLogger) {
+            unifiedLogger.error('Failed to load nodes: ' + error.message, 'dashboard');
+        }
     }
 }
 
 async function loadPodsData() {
     try {
+        if (window.unifiedLogger) {
+            unifiedLogger.info('Fetching pods data from cluster', 'dashboard');
+        }
         const pods = await fetchPods();
         renderPodsTable(pods);
         populateNamespaceFilter(pods);
+        if (window.unifiedLogger) {
+            const runningPods = pods.filter(p => p.status === 'Running').length;
+            unifiedLogger.success(`Loaded ${pods.length} pod(s) - ${runningPods} running`, 'dashboard', {
+                total: pods.length,
+                running: runningPods,
+                namespaces: [...new Set(pods.map(p => p.namespace))].length
+            });
+        }
     } catch (error) {
         console.error('Error loading pods:', error);
+        if (window.unifiedLogger) {
+            unifiedLogger.error('Failed to load pods: ' + error.message, 'dashboard');
+        }
     }
 }
 
@@ -154,94 +201,75 @@ async function loadHealthData() {
     }
 }
 
-// Fetch Functions (Simulated - Replace with actual API calls)
+// Fetch Functions (REAL DATA from Kubernetes API)
 async function fetchClusterData() {
-    // Simulate API delay
-    await sleep(500);
-    
-    return {
-        nodes: {
-            total: 1,
-            ready: 1
-        },
-        pods: {
-            running: 12,
-            healthy: 11,
-            pending: 1,
-            failed: 0
-        },
-        services: {
-            total: 8
-        },
-        deployments: {
-            total: 5,
-            ready: 4
-        },
-        events: [
-            {
-                type: 'success',
-                title: 'Pod Created',
-                description: 'Pod "nginx-deployment-7d8b9c8" created successfully',
-                time: '2 minutes ago'
-            },
-            {
-                type: 'success',
-                title: 'Node Ready',
-                description: 'Node "master-node" is ready',
-                time: '5 minutes ago'
-            },
-            {
-                type: 'warning',
-                title: 'High Memory Usage',
-                description: 'Node memory usage at 75%',
-                time: '10 minutes ago'
-            }
-        ]
-    };
+    try {
+        const response = await fetch('http://localhost:9000/api/cluster');
+        if (!response.ok) {
+            throw new Error('Failed to fetch cluster data');
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching cluster data:', error);
+        // Fallback to empty data if API is not available
+        return {
+            nodes: { total: 0, ready: 0 },
+            pods: { running: 0, healthy: 0, pending: 0, failed: 0 },
+            services: { total: 0 },
+            deployments: { total: 0, ready: 0 },
+            events: [{
+                type: 'error',
+                title: 'API Connection Failed',
+                description: 'Unable to connect to Kubernetes API Bridge. Make sure it\'s running.',
+                time: 'now'
+            }]
+        };
+    }
 }
 
 async function fetchNodes() {
-    await sleep(300);
-    return [
-        {
-            name: 'master-node',
-            status: 'Ready',
-            roles: 'control-plane,master',
-            age: '5d',
-            version: 'v1.30.0',
-            cpu: '45%',
-            memory: '62%'
-        }
-    ];
+    try {
+        const response = await fetch('http://localhost:9000/api/nodes');
+        if (!response.ok) throw new Error('Failed to fetch nodes');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching nodes:', error);
+        return [];
+    }
 }
 
 async function fetchPods() {
-    await sleep(300);
-    return [
-        { name: 'coredns-5d78c9869d-abcd1', namespace: 'kube-system', status: 'Running', restarts: 0, age: '5d' },
-        { name: 'coredns-5d78c9869d-efgh2', namespace: 'kube-system', status: 'Running', restarts: 0, age: '5d' },
-        { name: 'etcd-master-node', namespace: 'kube-system', status: 'Running', restarts: 0, age: '5d' },
-        { name: 'kube-apiserver-master-node', namespace: 'kube-system', status: 'Running', restarts: 0, age: '5d' },
-        { name: 'kube-controller-manager', namespace: 'kube-system', status: 'Running', restarts: 0, age: '5d' },
-        { name: 'kube-proxy-xyz123', namespace: 'kube-system', status: 'Running', restarts: 0, age: '5d' },
-        { name: 'kube-scheduler-master-node', namespace: 'kube-system', status: 'Running', restarts: 0, age: '5d' },
-        { name: 'weave-net-abc123', namespace: 'kube-system', status: 'Running', restarts: 1, age: '5d' }
-    ];
+    try {
+        const response = await fetch('http://localhost:9000/api/pods');
+        if (!response.ok) throw new Error('Failed to fetch pods');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching pods:', error);
+        return [];
+    }
 }
 
 async function fetchServices() {
-    await sleep(300);
-    return [
-        { name: 'kubernetes', namespace: 'default', type: 'ClusterIP', clusterIP: '10.96.0.1', ports: '443/TCP', age: '5d' },
-        { name: 'kube-dns', namespace: 'kube-system', type: 'ClusterIP', clusterIP: '10.96.0.10', ports: '53/UDP,53/TCP', age: '5d' }
-    ];
+    try {
+        const response = await fetch('http://localhost:9000/api/services');
+        if (!response.ok) throw new Error('Failed to fetch services');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching services:', error);
+        return [];
+    }
 }
 
 async function fetchDeployments() {
-    await sleep(300);
-    return [
-        { name: 'coredns', namespace: 'kube-system', ready: '2/2', upToDate: 2, available: 2, age: '5d' }
-    ];
+    try {
+        const response = await fetch('http://localhost:9000/api/deployments');
+        if (!response.ok) throw new Error('Failed to fetch deployments');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching deployments:', error);
+        return [];
+    }
 }
 
 async function fetchHealthStatus() {
@@ -495,6 +523,10 @@ function updateTimestamp() {
 async function refreshData() {
     const btn = document.querySelector('.refresh-btn');
     btn.style.pointerEvents = 'none';
+    
+    if (window.unifiedLogger) {
+        unifiedLogger.info('Manual refresh triggered', 'dashboard');
+    }
     
     const activePage = document.querySelector('.nav-item.active').getAttribute('data-page');
     await loadPageData(activePage);
